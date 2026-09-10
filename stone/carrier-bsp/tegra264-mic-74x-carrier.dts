@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
- * Advantech MIC-742 / MIC-743 carrier overlay (Jetson AGX Thor, tegra264).
+ * Advantech MIC-742-AT / MIC-743-AT carrier overlay (Jetson AGX Thor, tegra264).
  *
  * Applied at flash time via CARRIER_FV_OVERLAY_DTB_FILE in carrier.env, this
  * replaces the MACHINE-baked OVERLAY_DTB_FILE (tegra264-ftpm.dtbo) rather than
@@ -9,7 +9,7 @@
  * This is the whole kernel-DT delta between the stock NVIDIA AGX Thor devkit
  * DTB and the DTB Advantech ships, and it is BYTE-IDENTICAL between the T5000
  * (p3834-0008) and T4000 (p3834-0000) variants -- which is why one overlay
- * serves both the MIC-743 and the MIC-742 instead of two full 256KB DTBs.
+ * serves both module SKUs of both products instead of four full 256KB DTBs.
  *
  * Verified by applying this overlay to the stock R39.2.0
  * tegra264-p4071-0000+p3834-0008-nv.dtb with fdtoverlay and diffing the result
