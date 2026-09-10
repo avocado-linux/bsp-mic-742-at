@@ -6,39 +6,38 @@ initramfs:
   filesystem: cpio.gz
 
 extensions:
-  avocado-bsp-mic-742:
-    version: 0.1.0
+  avocado-bsp-mic-742-at:
+    version: 0.2.0
     release: r0
-    summary: Board support for the Advantech MIC-742 (carrier extension on jetson-agx-thor)
+    summary: Board support for the Advantech MIC-742-AT, both module SKUs (carrier extension on jetson-agx-thor)
     description: |
-      Layered carrier support for the Advantech MIC-742 — the Jetson AGX Thor
-      T4000 (P3834-0000 CVM) variant of Advantech's MIC-74x industrial edge AI
-      system. The MIC-743 is the same carrier with a T5000 (P3834-0008) module
-      and has its own extension; the carrier half of the two is identical, so
-      the pinmux/GPIO/prod BCTs and the kernel-DT overlay here are byte-for-byte
-      the MIC-743's. What differs is the module: SDRAM BCTs, BPMP DTB and
-      firmware, PMIC and MISC BCTs, chip SKU and RAMCODE, listed in carrier.env.
+      Layered carrier support for the Advantech MIC-742-AT — the GMSL member of
+      Advantech's MIC-74x Jetson AGX Thor industrial edge AI family, carrying 8
+      channels of GMSL2 over mini-FAKRA. The MIC-743-AT is the same P4071-class
+      carrier without the GMSL front end, and has its own extension.
 
-      Split into two extensions rather than one because those module flashvars
-      are not interchangeable — flashing a T4000 with T5000 SDRAM training and
-      PMIC config is not a soft failure — and because pinning CHECK_BOARDSKU
-      per extension makes a mismatched module fail fast at the tegraflash
-      board-ID check.
+      Covers BOTH module SKUs Advantech sells the product with:
 
-      CAVEAT: the carrier half is hardware-verified (on a MIC-743); the T4000
-      module half is NOT. Advantech's SDK is labelled MIC-742 but only ever
-      flashes the T5000 profile, so the T4000 values are derived from NVIDIA's
-      own p3834-0000-p4071-0000-nvme.conf in the same R39.2.0 BSP. Supporting
-      evidence that the variant is real: Advantech shipped a
-      tegra264-p4071-0000+p3834-0000-nv.dtb carrying the same carrier patch as
-      the T5000 DTB. Confirm on hardware before treating this as proven.
+        MIC-742-AT7A1   Jetson T5000, P3834-0008 CVM, 128GB
+        MIC-742-AT6A1   Jetson T4000, P3834-0000 CVM,  64GB
+
+      Nothing in this extension selects between them. initrd-flash.sh reads the
+      module EEPROM at flash time and retargets the module-specific flash files
+      at whichever SKU it finds, so one BSP serves both — see
+      meta-avocado-nvidia/docs/adding-a-jetson-carrier.md.
+
+      GMSL IS NOT SUPPORTED YET. The carrier delta below was derived from a
+      MIC-743-AT, and Advantech's SDK ships no GMSL device tree for this
+      product. Everything here is the shared MIC-74x carrier; the camera front
+      end still has to be brought up on real MIC-742-AT hardware.
 
       Advantech's Flash SOP runs the STOCK NVIDIA profile
       (`l4t_initrd_flash.sh jetson-agx-thor-devkit internal`), so the
       avocado-jetson-agx-thor MACHINE defaults are the correct baseline and
       this extension carries only the carrier delta. That delta was derived by
-      diffing Advantech's MIC-742_Thor_7.2_V1.0.0_SDK against the stock NVIDIA
-      Jetson_Linux_R39.2.0_aarch64 BSP — the same L4T release wrynose pins, so
+      diffing Advantech's MIC-742_Thor_7.2_V1.0.0_SDK — the vendor ships one
+      SDK for the MIC-74x family — against the stock NVIDIA
+      Jetson_Linux_R39.2.0_aarch64 BSP, the same L4T release wrynose pins, so
       none of it is a cross-release backport.
 
       Flash-time carrier files (stone/carrier-bsp/, see carrier.env):
@@ -50,20 +49,28 @@ extensions:
         * tegra264-mb1-bct-prod-p3834-xxxx-p4071-0000.dts — I2C1 drive-strength
           fix so MB1 can read the SoM EEPROM through the carrier's 1.8↔3.3V
           level shifter (NVIDIA bug 5459342).
-        * tegra264-bpmp-3834-0000-4071-xxxx-adv.dtb — the stock T4000
-          BPMP DTB with pcie@3 enabled (the same one-property change Advantech
-          made to the T5000 BPMP DTB).
+        * tegra264-bpmp-3834-0008-4071-xxxx-adv.dtb and its -3834-0000-
+          counterpart — pcie@3 enabled, one per module SKU. Both ship because
+          the flash-time module retarget picks between them by name.
         * tegra264-mic-74x-carrier.dtbo — the kernel-DT delta, as an overlay
           rather than a forked 256KB DTB. Four fragments: the discrete
           Infineon SLB9670 TPM on SPI2 CS0, PCIe C3 (SATA), the DCE SHA
-          carveout, and the internal-speaker audio routing. Verified offline by
-          applying it to the stock R39.2.0 DTB with fdtoverlay and diffing
-          against Advantech's shipped DTB.
+          carveout, and the internal-speaker audio routing. Identical on
+          Advantech's T5000 and T4000 DTBs. Verified offline by applying it to
+          the stock R39.2.0 DTB with fdtoverlay and diffing against
+          Advantech's shipped DTB.
 
-      Carrier hardware (confirmed on a running MIC-743, same carrier): Infineon
-      SLB9670 TPM 2.0 (spi2.0, /dev/tpm0), ASMedia ASM106x SATA on PCIe C3, 4x
-      on-SoC MGBE 10GbE + Realtek r8126, 4x CAN (mttcan), 4x ttyS, RT5640 audio,
-      AT24 EEPROMs, TMP451/LM90, INA3221/INA238.
+      Carrier hardware confirmed on a running MIC-743-AT7A1: Infineon SLB9670
+      TPM 2.0 (spi2.0, /dev/tpm0), ASMedia ASM106x SATA on PCIe C3, 4x on-SoC
+      MGBE 10GbE + Realtek r8126, 4x CAN (mttcan), 4x ttyS, RT5640 audio, AT24
+      EEPROMs, TMP451/LM90, INA3221/INA238.
+
+      Known module-dependent gap: tegra-nvfancontrol installs a single
+      /etc/nvfancontrol.conf chosen at BUILD time from the MACHINE's
+      NVFANCONTROL (the T5000 profile, nvfancontrol_p3834_0008_p4071_0000). A
+      T4000 therefore runs the T5000 fan curve. It is a fan table, not a boot
+      dependency, and no extension can fix it — the package is built once per
+      MACHINE.
     license: Apache-2.0
     url: https://github.com/avocadolinux/avocado-os
     vendor: Avocado Linux <info@avocadolinux.org>
@@ -87,12 +94,12 @@ extensions:
     # the runtime's effective AVOCADO_STONE_INCLUDE_PATHS, scoped to this
     # extension's location, so consumers fetching this BSP as a remote
     # extension find the carrier files at
-    # $AVOCADO_PREFIX/includes/avocado-bsp-mic-742/stone/.
+    # $AVOCADO_PREFIX/includes/avocado-bsp-mic-742-at/stone/.
     stone_include_paths:
       - stone
 
     # Confext overlay — ships /etc/hostname so the device identifies as
-    # `mic-742` rather than the MACHINE-derived `avocado-jetson-agx-thor`.
+    # `mic-742-at` rather than the MACHINE-derived `avocado-jetson-agx-thor`.
     overlay: overlay
 
     on_merge:
@@ -136,7 +143,7 @@ extensions:
       # quoted in the comment above, but was never transcribed into this list --
       # and Avocado's minimal rootfs drops MACHINE_EXTRA_RDEPENDS, so nothing
       # else pulls it in. Without it nothing drives the PWM and the fan sits at
-      # its hardware default, i.e. full speed, forever. Verified on a MIC-743:
+      # its hardware default, i.e. full speed, forever. Verified on a MIC-743-AT7A1:
       # `command -v nvfancontrol` -> absent, no pwmfan hwmon, fans at 100%.
       # The per-machine profile is selected upstream via NVFANCONTROL
       # (nvfancontrol_p3834_0008_p4071_0000 on tegra264).
@@ -299,7 +306,7 @@ extensions:
         # (both are =y on L4T), so the AHCI driver must be installed or the
         # ASMedia ASM106x enumerates on PCIe C3 and then binds nothing:
         # lspci shows 1b21:0622 class 0106, but /sys/class/ata_port is empty
-        # and no sd device appears. Verified on a MIC-743.
+        # and no sd device appears. Verified on a MIC-743-AT7A1.
         kernel-module-ahci: '*'
         kernel-module-libahci: '*'
         kernel-module-libata: '*'
