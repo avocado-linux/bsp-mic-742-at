@@ -72,7 +72,7 @@ extensions:
       dependency, and no extension can fix it — the package is built once per
       MACHINE.
     license: Apache-2.0
-    url: https://github.com/avocadolinux/avocado-os
+    url: https://github.com/avocado-linux/bsp-mic-742-at
     vendor: Avocado Linux <info@avocadolinux.org>
 
     types:
